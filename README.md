@@ -94,6 +94,34 @@ relative asset paths against that file's own directory, so the include above wor
 including one where your own model declares a different `meshdir`. Just keep `models/` and `assets/`
 in their relative positions.
 
+## Sitting and lying poses
+
+<p float="left">
+  <img src="images/sitting.png" width="600" />
+</p>
+<p float="left">
+  <img src="images/lying.png" width="600" />
+</p>
+
+Each model has two keyframes: `sit` and `lie`. Load one with `mj_resetDataKeyframe`:
+
+```python
+import mujoco
+import mujoco.viewer
+
+model = mujoco.MjModel.from_xml_path("musculoskeletal_dog/models/scene.xml")
+data = mujoco.MjData(model)
+mujoco.mj_resetDataKeyframe(model, data, model.key("sit").id)  # or "lie"
+mujoco.viewer.launch(model, data)
+```
+
+In the `simulate` viewer, open the **Simulation** panel, choose the key with the **Key** slider
+(0 is `sit`, 1 is `lie`) and press **Load key**.
+
+In `dog.xml` the keyframes also store the constant actuator commands (`act` and `ctrl`) that hold each
+pose under gravity, so the dog stays put when the simulation runs. In the muscle models the keyframes
+store the pose only: as with the default standing pose, holding them requires muscle control.
+
 ## License
 
 Released under the [MIT License](LICENSE).
