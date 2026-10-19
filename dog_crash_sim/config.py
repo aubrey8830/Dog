@@ -37,7 +37,7 @@ import dataclasses
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Union, get_args, get_origin, get_type_hints
+from typing import Optional, Union, get_args, get_origin, get_type_hints
 
 import yaml
 

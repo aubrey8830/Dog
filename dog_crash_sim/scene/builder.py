@@ -28,7 +28,7 @@ from typing import Optional
 import mujoco
 import numpy as np
 
-from ..config import BREED_SIZES, ScenarioConfig, dog_mass_and_height, partner_defaults
+from ..config import ScenarioConfig, dog_mass_and_height, partner_defaults
 from ..biophysics.dog_model import DogScaling, load_dog_spec, scale_dog_spec
 from ..biophysics.posture import POSTURES, default_facing, quat_from_euler
 from .harness import HarnessGeometry, build_geometry, bushing_params
@@ -535,8 +535,8 @@ class SceneBuilder:
             body.mass = 0.5
             body.explicitinertial = True
             body.inertia = [0.01, 0.01, 0.01]
-            g = self._veh_geom(body, "airbag", name, GEOM.mjGEOM_BOX, size, [0, 0, 0], material="airbag", trim="soft",
-                               friction=0.4)
+            self._veh_geom(body, "airbag", name, GEOM.mjGEOM_BOX, size, [0, 0, 0], material="airbag", trim="soft",
+                           friction=0.4)
             self.airbags.append({"name": name, "cfg": ab, "joint": name + "_deploy", "geom": name, "stroke": stroke})
 
     # ---- harness ------------------------------------------------------

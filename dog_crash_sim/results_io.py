@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from .config import G, config_from_dict, load_config
+from .config import G, load_config
 
 
 def _jsonable(o):

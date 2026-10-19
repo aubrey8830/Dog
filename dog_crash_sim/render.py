@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import math
-import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import mujoco
 import numpy as np

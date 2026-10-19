@@ -5,14 +5,12 @@ from __future__ import annotations
 import base64
 import dataclasses
 import html
-import json
 from pathlib import Path
 
 import numpy as np
 
 from .config import G, ScenarioConfig, dog_mass_and_height, road_friction
 from .analysis.signals import cfc_filter
-from .scene.builder import DOG_PARTS, VEH_PARTS
 
 # reference palette (validated; slots in fixed order) and chart chrome
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]

@@ -26,7 +26,7 @@ from pathlib import Path
 
 import yaml
 
-from .config import ScenarioConfig, commented_template, config_from_dict, deep_merge, params_table
+from .config import commented_template, config_from_dict, deep_merge, params_table
 from .presets import PRESETS, preset
 
 

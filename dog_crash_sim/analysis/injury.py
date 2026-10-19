@@ -25,7 +25,7 @@ import numpy as np
 
 from ..config import G
 from ..scene.builder import DOG_PARTS, VEH_PARTS
-from .signals import cfc_filter, clip_3ms, hic, peak
+from .signals import cfc_filter, clip_3ms, hic
 
 HUMAN = {
     "mass": 78.0, "head_mass": 4.54,
@@ -280,7 +280,6 @@ def assess(res) -> dict:
     else:
         on = lay.trunk_rear_x - 0.05 <= tor_end[0] <= lay.trunk_front_x + 0.2
     # ---- impacts ---------------------------------------------------------------------
-    head_i = DOG_PARTS.index("head")
     support = [VEH_PARTS.index("rear_cushion")] if lay.support == "cushion" else [VEH_PARTS.index("floor"), VEH_PARTS.index("trunk")]
     contact_peaks = {}
     for di, dp in enumerate(DOG_PARTS):
