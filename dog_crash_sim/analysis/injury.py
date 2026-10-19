@@ -345,11 +345,18 @@ def assess(res) -> dict:
         "vehicle_peak_g": float(res.motion.info.get("peak_accel_g", 0.0)),
         "vehicle_delta_v_kph": float(res.motion.info.get("delta_v_kph", 0.0)),
     }
+    # composite index for ranking designs: mean over body regions/categories of the worst ratio (capped at 3)
+    region_ratio = {}
+    for c in crit:
+        region_ratio[c["region"]] = max(region_ratio.get(c["region"], 0.0), min(c["ratio"], 3.0))
+    injury_index = float(np.mean(list(region_ratio.values()))) if region_ratio else 0.0
     return {
         "criteria": crit, "risk": risk, "flags": flags, "events": ev, "remained_on_seat": bool(on),
+        "region_ratio": region_ratio,
         "contact_peaks_N": dict(sorted(contact_peaks.items(), key=lambda kv: -kv[1])),
         "head_contacts_N": head_contacts, "pressures_kPa": {k: float(np.max(v[post]) / 1e3) for k, v in pressures.items()},
         "region_status": region_status, "peaks": peaks,
         "scaling": {"lambda_body": lam, "lambda_head": lam_h, "dog_head_mass_kg": head_mass},
-        "summary": {"overall": overall, "worst_criterion": worst["label"], "worst_ratio": worst["ratio"]},
+        "summary": {"overall": overall, "worst_criterion": worst["label"], "worst_ratio": worst["ratio"],
+                    "injury_index": injury_index},
     }

@@ -1,0 +1,58 @@
+# Frontal crash of a mid-size sedan with a 20 kg dog sitting behind the driver.
+# Every one of the six test categories is spelled out here; anything omitted keeps its default
+# (run `python -m dog_crash_sim template` for the full list with units and explanations).
+name: frontal_sedan_belt_loop
+description: 56 km/h full-width rigid-wall impact after emergency braking; belt threaded through a padded vest
+
+collision:                       # impact speed, direction, angle, overlap, collision partner
+  impact_speed_kph: 56
+  impact_direction: frontal      # frontal | rear | left | right (struck face)
+  impact_angle_deg: 0
+  overlap: 1.0                   # fraction of the struck face engaged
+  partner: {type: rigid_barrier}
+
+vehicle:                         # mass, dimensions, structural stiffness, crush zones, rear compartment
+  preset: midsize_sedan
+  mass_kg: 1600
+  structure: {front_stiffness_kN_per_m: 1500, compartment_stiffness_kN_per_m: 7000}
+  crush_zones_front:
+    - {name: bumper_beam, depth_m: 0.08, force_kN: 80}
+    - {name: crash_boxes, depth_m: 0.12, force_kN: 180}
+    - {name: front_rails, depth_m: 0.35, force_kN: 360}
+    - {name: engine_firewall, depth_m: 0.15, force_kN: 600}
+  rear_compartment: {seat_back_angle_deg: 25, front_seat_back_x_m: -0.15, roof_height_m: 1.36}
+
+rear_passenger:                  # the dog: body size, seating position, posture, seat belt used
+  breed_size: medium             # 20 kg, 0.50 m at the withers
+  seating_position: rear_left
+  posture: sitting
+  seat_belt_used: true
+  neuromuscular: {muscle_tone: 0.35, startle_reflex: true, reflex_delay_ms: 70}
+
+harness:
+  name: padded vest, dorsal loop
+  style: padded_vest
+  chest_plate_area_cm2: 160
+
+restraints:                      # belt geometry, pretensioner, load limiter, airbags, seat, head restraints
+  attachment: belt_loop
+  belt: {slack_mm: 15, retractor_lock_g: 0.45}
+  pretensioner: {enabled: true, stroke_mm: 80, fire_threshold_g: 8}
+  load_limiter: {enabled: true, force_kN: 3.0}
+  airbags:
+    - {type: curtain, side: left, fire_on: [left, right]}
+    - {type: curtain, side: right, fire_on: [left, right]}
+  seat: {cushion_stiffness_kN_per_m: 25, seat_back_latch_strength_Nm: 3200}
+  head_restraints: {present: true, height_above_seatback_m: 0.18}
+
+trunk_cargo:                     # cargo mass, dimensions, position, packing arrangement, restraint method
+  items:
+    - {name: suitcase, mass_kg: 18, size_m: [0.70, 0.45, 0.26]}
+  packing: against_seatback
+  restraint_method: none
+
+environment:                     # road friction, pre-impact braking, vehicle movement before impact
+  road_condition: dry
+  pre_impact_duration_s: 1.0
+  braking: {enabled: true, deceleration_g: 0.8, onset_before_impact_s: 0.6, abs: true}
+  motion: {initial_yaw_rate_deg_s: 0, sideslip_deg: 0, steer_angle_deg: 0}

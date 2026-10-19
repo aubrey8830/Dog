@@ -1,0 +1,545 @@
+# Rear-seat dog harness crash scenario
+# Coordinates: vehicle frame, x forward, y left, z up, origin on the ground below the CG.
+
+# Scenario name
+name: scenario
+# Free text
+description: ''
+# Collision
+collision:
+  # crash: full vehicle-to-partner crash model; sled: prescribed acceleration pulse (laboratory sled test) (options: crash, sled)
+  mode: crash
+  # Speed of the subject vehicle (the one carrying the dog) at the moment of impact [km/h]
+  impact_speed_kph: 56.0
+  # Face of the subject vehicle that is struck (options: frontal, rear, left, right)
+  impact_direction: frontal
+  # Obliquity: rotation of the partner (or barrier face) relative to the struck face, positive counter-clockwise seen from above [deg]
+  impact_angle_deg: 0.0
+  # Fraction (0-1] of the struck face width that is engaged by the partner [-]
+  overlap: 1.0
+  # Side of the struck face on which the overlap sits (frontal/rear impacts) (options: left, right, center)
+  overlap_side: left
+  # Side impacts: x position (vehicle frame) of the partner centre line; frontal/rear pole impacts: y position. None = at the dog's seating row (side) or vehicle centre line (frontal/rear) [m]
+  impact_location_m: null
+  # Friction coefficient between the two crushing structures [-]
+  interface_friction: 0.3
+  # Simulated time after first contact [s]
+  duration_after_impact_s: 0.3
+  # Collision partner
+  partner:
+    # Collision partner. rigid_barrier: flat concrete wall; deformable_barrier: fixed honeycomb (ODB) face; pole: narrow rigid pole; vehicle: another car; moving_barrier: test trolley with deformable face (MDB); truck: heavy, stiff, high-riding vehicle (options: rigid_barrier, deformable_barrier, pole, vehicle, moving_barrier, truck)
+    type: rigid_barrier
+    # Partner mass (moving partners only). None = type default [kg]
+    mass_kg: null
+    # Partner speed at impact along its own heading (0 for fixed barriers) [km/h]
+    speed_kph: 0.0
+    # Width of the partner's engaging face (pole diameter for poles). None = type default [m]
+    width_m: null
+    # Partner length (visualisation and yaw inertia). None = type default [m]
+    length_m: null
+    # Elastic stiffness of the partner face before it crushes. None = type default [kN/m]
+    stiffness_kN_per_m: null
+    # Mean crush (plateau) force of the partner face. None = type default [kN]
+    crush_force_kN: null
+    # Crushable depth of the partner face before it bottoms out. None = type default [m]
+    crush_depth_m: null
+    # Height of the partner's main load path above ground; a mismatch with the subject vehicle reduces structural engagement (override/underride) [m]
+    structure_height_m: null
+    # Face of a vehicle partner that engages the subject vehicle (options: front, side, rear)
+    engaged_face: front
+  # Sled pulse (collision.mode = sled)
+  sled:
+    # Pulse shape for collision.mode = sled. fmvss213 approximates the FMVSS 213 child-restraint sled corridor used by harness crash-test protocols (options: fmvss213, half_sine, trapezoid, csv)
+    shape: fmvss213
+    # Velocity change of the sled pulse [km/h]
+    delta_v_kph: 48.0
+    # Pulse duration (half_sine, trapezoid) [ms]
+    duration_ms: 80.0
+    # Rise time (trapezoid) [ms]
+    rise_ms: 20.0
+    # Fall time (trapezoid) [ms]
+    fall_ms: 25.0
+    # CSV file with columns time_s, accel_g (deceleration positive) for shape = csv
+    csv_path: null
+
+# Vehicle
+vehicle:
+  # Optional body preset applied before the other vehicle values (options: midsize_sedan, compact_hatchback, midsize_suv, station_wagon, minivan, pickup_crew_cab)
+  preset: null
+  # Body style; hatchback/suv/wagon/minivan have an open cargo area behind the rear seat (options: sedan, hatchback, suv, wagon, minivan, pickup)
+  body_style: sedan
+  # Test mass of the subject vehicle [kg]
+  mass_kg: 1600.0
+  # Overall length [m]
+  length_m: 4.85
+  # Overall width [m]
+  width_m: 1.85
+  # Overall height [m]
+  height_m: 1.45
+  # Wheelbase [m]
+  wheelbase_m: 2.83
+  # Track width [m]
+  track_m: 1.58
+  # Centre-of-gravity height [m]
+  cg_height_m: 0.55
+  # Distance from the front axle back to the CG [m]
+  cg_to_front_axle_m: 1.3
+  # Front bumper ahead of the front axle [m]
+  front_overhang_m: 0.95
+  # Yaw moment of inertia. None = estimated from mass and size [kg m^2]
+  yaw_inertia_kgm2: null
+  # Pitch moment of inertia. None = estimated [kg m^2]
+  pitch_inertia_kgm2: null
+  # Roll moment of inertia. None = estimated [kg m^2]
+  roll_inertia_kgm2: null
+  # Cornering stiffness per axle [N/rad]
+  tire_cornering_stiffness_N_per_rad: 90000.0
+  # Fraction of brake force on the front axle [-]
+  brake_balance_front: 0.65
+  # Structural stiffness
+  structure:
+    # Elastic stiffness of the front structure before plastic crush [kN/m]
+    front_stiffness_kN_per_m: 1500.0
+    # Elastic stiffness of the rear structure [kN/m]
+    rear_stiffness_kN_per_m: 1000.0
+    # Elastic stiffness of the side structure [kN/m]
+    side_stiffness_kN_per_m: 700.0
+    # Stiffness of the passenger cell once all crush zones are used [kN/m]
+    compartment_stiffness_kN_per_m: 7000.0
+    # Unloading slope as a multiple of the elastic stiffness (controls restitution) [-]
+    unloading_stiffness_factor: 20.0
+    # Height of the main longitudinal load path above ground [m]
+    structure_height_m: 0.5
+    # Share of the front/rear structural force carried by each longitudinal rail (the rest is spread across the bumper width) [-]
+    front_rail_share: 0.35
+    # Rail position as a fraction of the half width [-]
+    rail_lateral_position: 0.42
+    # Share of the side structural force carried by the B-pillar (C-pillar gets 0.2) [-]
+    b_pillar_share: 0.35
+  # Front crush zones from the bumper rearwards (depth, mean force) [m, kN]
+  crush_zones_front:
+    - name: bumper_beam
+      depth_m: 0.08
+      force_kN: 80.0
+    - name: crash_boxes
+      depth_m: 0.12
+      force_kN: 180.0
+    - name: front_rails
+      depth_m: 0.35
+      force_kN: 360.0
+    - name: engine_firewall
+      depth_m: 0.15
+      force_kN: 600.0
+  # Rear crush zones from the bumper forwards [m, kN]
+  crush_zones_rear:
+    - name: bumper_beam
+      depth_m: 0.08
+      force_kN: 60.0
+    - name: crash_boxes
+      depth_m: 0.1
+      force_kN: 130.0
+    - name: rear_rails_trunk_floor
+      depth_m: 0.4
+      force_kN: 250.0
+    - name: rear_bulkhead
+      depth_m: 0.15
+      force_kN: 420.0
+  # Side crush zones from the outer skin inwards [m, kN]
+  crush_zones_side:
+    - name: door_skin
+      depth_m: 0.06
+      force_kN: 55.0
+    - name: door_beam
+      depth_m: 0.12
+      force_kN: 150.0
+    - name: pillar_sill
+      depth_m: 0.15
+      force_kN: 280.0
+    - name: floor_crossmember_tunnel
+      depth_m: 0.15
+      force_kN: 420.0
+  # Rear-compartment geometry
+  rear_compartment:
+    # x of the seat bight (cushion/seat-back junction) of the rear bench [m]
+    seat_bight_x_m: -0.95
+    # Height of the top of the rear cushion above ground at the bight [m]
+    cushion_height_m: 0.6
+    # Fore-aft length of the rear cushion [m]
+    cushion_length_m: 0.5
+    # Foam thickness of the rear cushion [m]
+    cushion_thickness_m: 0.14
+    # Cushion angle (front edge raised) [deg]
+    cushion_angle_deg: 10.0
+    # Width of the rear bench [m]
+    seat_width_m: 1.36
+    # Rear seat-back recline from vertical [deg]
+    seat_back_angle_deg: 25.0
+    # Rear seat-back height along its surface [m]
+    seat_back_height_m: 0.62
+    # Rear seat-back thickness [m]
+    seat_back_thickness_m: 0.12
+    # x of the rear face of the front seat backs [m]
+    front_seat_back_x_m: -0.15
+    # Height of the top of the front seat backs [m]
+    front_seat_back_top_m: 1.22
+    # Width of each front seat [m]
+    front_seat_width_m: 0.54
+    # Width of the centre console between the front seats [m]
+    console_width_m: 0.24
+    # Height of the rear foot-well floor [m]
+    floor_height_m: 0.3
+    # Height of the transmission tunnel above the floor [m]
+    tunnel_height_m: 0.07
+    # Inner width between the rear door trims [m]
+    cabin_width_m: 1.42
+    # Inner roof height above ground at the rear row [m]
+    roof_height_m: 1.36
+    # Height of the window sill (door trim top) [m]
+    beltline_height_m: 1.0
+    # Side crush absorbed before the inner door trim starts to intrude [m]
+    door_crush_space_m: 0.07
+    # x of the C-pillar (outboard belt upper anchorage) [m]
+    c_pillar_x_m: -1.15
+    # Length of the trunk / cargo floor behind the rear seat back [m]
+    trunk_length_m: 1.0
+    # Height of the trunk / cargo floor [m]
+    trunk_floor_height_m: 0.62
+    # Clear height of the trunk (to the parcel shelf/deck lid or cargo-area roof) [m]
+    trunk_height_m: 0.45
+    # Width of the trunk / cargo floor [m]
+    trunk_width_m: 1.1
+    # Rear crush absorbed before the trunk rear wall moves into the trunk [m]
+    rear_crush_space_m: 0.3
+    # Rigid parcel shelf / bulkhead above the seat back (sedans)
+    parcel_shelf: true
+    # Front seats and console in front of the rear row (false = open sled buck)
+    front_seats_present: true
+    # Roof, pillars and side windows (false = open sled buck)
+    roof_present: true
+    # Rear door trims (false = open sled buck)
+    doors_present: true
+  # Pitch/roll suspension
+  suspension:
+    # Body pitch natural frequency [Hz]
+    pitch_frequency_hz: 1.4
+    # Body roll natural frequency [Hz]
+    roll_frequency_hz: 1.6
+    # Pitch/roll damping ratio [-]
+    damping_ratio: 0.35
+    # Pitch/roll angle at which the bump stops engage [deg]
+    bump_stop_deg: 5.0
+
+# Rear passenger (dog)
+rear_passenger:
+  # Body-size preset (mass, withers height); 'custom' uses mass_kg and withers_height_m (options: toy, small, medium, large, giant, cps_25lb, cps_45lb, cps_75lb, custom)
+  breed_size: medium
+  # Body mass. None = from breed_size [kg]
+  mass_kg: null
+  # Height at the withers (standing). None = from breed_size or allometry [m]
+  withers_height_m: null
+  # Where the dog rides (options: rear_left, rear_center, rear_right, rear_footwell, cargo_area)
+  seating_position: rear_left
+  # Posture at the start of the event (options: sitting, lying_sternal, lying_lateral, standing)
+  posture: sitting
+  # Heading of the dog in the vehicle (0 = facing forward, 90 = facing the left door). None = posture default [deg]
+  facing_deg: null
+  # Extra lateral offset from the seating-position centre (+left) [m]
+  lateral_offset_m: 0.0
+  # Whether the harness is connected to the vehicle restraint system (via the seat belt or an anchor). False = unrestrained dog wearing the harness
+  seat_belt_used: true
+  # Muscle tone and reflexes
+  neuromuscular:
+    # Baseline postural muscle activation (0 = flaccid/asleep, 1 = maximal) [-]
+    muscle_tone: 0.35
+    # Enable the startle / bracing reflex after the crash onset
+    startle_reflex: true
+    # Latency of the startle / long-latency stretch reflex [ms]
+    reflex_delay_ms: 70.0
+    # Muscle activation reached during the reflex (0-1) [-]
+    reflex_activation: 0.8
+    # Latency of the short-latency (spinal) stretch reflex [ms]
+    stretch_reflex_delay_ms: 25.0
+    # Gain of the delayed stretch reflex relative to the postural gain [-]
+    stretch_reflex_gain: 0.4
+    # Muscle activation/deactivation time constant [ms]
+    activation_time_ms: 50.0
+    # Exponential passive tissue torque in the last part of each joint range
+    ligament_stiffening: true
+  # anatomical: redistribute the model's segment masses to canine segment fractions (head 7 %, neck 6 %, thorax 32 %, lumbar 14 %, pelvis 8 %, forelimbs 12 %, hindlimbs 20 %, tail 1 %); model: keep the source model's distribution (options: anatomical, model)
+  mass_distribution: anatomical
+  # Override the MuJoCo dog model (defaults to musculoskeletal_dog/models/dog.xml)
+  model_path: null
+
+# Harness under test
+harness:
+  # Label used in reports
+  name: generic padded vest
+  # Load-path architecture. padded_vest: wide straps + padded chest plate; y_front: Y-shaped chest strap; norwegian: horizontal strap across the front of the chest; step_in: neck loop + girth loop; collar_only: tether to a collar (reference case) (options: padded_vest, y_front, norwegian, step_in, collar_only)
+  style: padded_vest
+  # Where the tether/belt attaches on the harness (options: dorsal, ventral)
+  attachment_point: dorsal
+  # Webbing width of the body straps [mm]
+  strap_width_mm: 38.0
+  # Area of the padded chest plate (0 = none) [cm^2]
+  chest_plate_area_cm2: 160.0
+  # Foam padding under the straps/plates [mm]
+  padding_thickness_mm: 12.0
+  # Looseness of the fitted harness [mm]
+  fit_slack_mm: 10.0
+  # Body-strap webbing elongation at rated load [%]
+  strap_elongation_pct_at_rated: 10.0
+  # Body-strap breaking strength [kN]
+  strap_rated_strength_kN: 12.0
+  # Breaking strength of the attachment ring [kN]
+  d_ring_strength_kN: 12.0
+  # Breaking strength of the body-strap buckles (side-release plastic buckles are often 1-3 kN; metal cam buckles 8+ kN) [kN]
+  buckle_strength_kN: 8.0
+  # Harness mass [kg]
+  mass_kg: 0.45
+  # Colour of the 3D harness
+  rgba: [0.15, 0.35, 0.75, 1.0]
+  # Optional STL of your own harness design, attached to the harness frame for display (metres, dog torso frame)
+  visual_mesh: null
+  # Tether / belt-loop strap
+  tether:
+    # Free length of the tether/belt-loop strap. None = taut length at rest plus slack_m [m]
+    length_m: null
+    # Free play beyond the taut length when length_m is None [m]
+    slack_m: 0.04
+    # Webbing elongation at its rated load (nylon ~10-20 %, polyester ~6-10 %) [%]
+    elongation_pct_at_rated: 12.0
+    # Breaking strength of the tether webbing [kN]
+    rated_strength_kN: 10.0
+    # Hardware between tether and anchor (options: carabiner, snap_hook, buckle_tongue, isofix_clip, loop)
+    connector: carabiner
+    # Breaking strength of the connector [kN]
+    connector_strength_kN: 12.0
+    # Tear-webbing energy absorber activation force (None = none) [kN]
+    energy_absorber_force_kN: null
+    # Available energy absorber payout [m]
+    energy_absorber_stroke_m: 0.0
+    # Webbing damping ratio [-]
+    damping_ratio: 0.08
+
+# Vehicle restraints
+restraints:
+  # How the harness is connected when rear_passenger.seat_belt_used is true. belt_loop: shoulder belt threaded through the harness loop; buckle_tether: tether clipped into the belt buckle; isofix_tether: Y-tether to both ISOFIX lower anchors; headrest_tether: tether around the head restraint posts; cargo_hook_tether: tether to the cargo-floor tie-down hooks (options: belt_loop, buckle_tether, isofix_tether, headrest_tether, cargo_hook_tether)
+  attachment: belt_loop
+  # Belt geometry
+  belt:
+    # Shoulder-belt upper anchorage (D-ring) in the vehicle frame. None = at the C-pillar for outboard seats / roof for the centre seat [m]
+    upper_anchor_m: null
+    # Buckle position in the vehicle frame. None = inboard at the seat bight [m]
+    buckle_m: null
+    # Outboard lap anchor in the vehicle frame. None = outboard at the seat bight [m]
+    lap_anchor_m: null
+    # Lateral spacing of the ISOFIX/LATCH lower anchors [m]
+    isofix_spacing_m: 0.28
+    # Vehicle belt webbing elongation at 10 kN [%]
+    webbing_elongation_pct_at_10kN: 8.0
+    # Slack in the belt / tether at buckle-up [mm]
+    slack_mm: 15.0
+    # Vehicle-sensitive retractor locking threshold [g]
+    retractor_lock_g: 0.45
+    # Webbing pulled out of the retractor after locking (film-spool effect) [mm]
+    film_spool_mm: 15.0
+  # Pretensioner
+  pretensioner:
+    # Pyrotechnic pretensioner present
+    enabled: true
+    # retractor: pulls the shoulder belt; buckle: pulls the buckle (also tensions buckle tethers) (options: retractor, buckle)
+    type: retractor
+    # Impact directions that fire the pretensioner
+    fire_on: [frontal, rear]
+    # Vehicle deceleration that triggers firing [g]
+    fire_threshold_g: 8.0
+    # Time from threshold crossing to firing [ms]
+    fire_delay_ms: 8.0
+    # Maximum webbing retraction [mm]
+    stroke_mm: 80.0
+    # Stall force of the pretensioner [kN]
+    max_force_kN: 2.0
+    # Retraction speed [m/s]
+    speed_m_per_s: 12.0
+  # Load limiter
+  load_limiter:
+    # Retractor load limiter (torsion bar) present
+    enabled: true
+    # Belt force at which webbing pays out [kN]
+    force_kN: 3.0
+    # Maximum payout [mm]
+    max_payout_mm: 150.0
+  # Airbags in the rear compartment
+  airbags:
+    - type: curtain
+      side: left
+      enabled: true
+      fire_on: [left, right]
+      fire_threshold_g: 6.0
+      fire_delay_ms: 6.0
+      inflation_time_ms: 25.0
+      peak_pressure_kPa: 45.0
+      vent_time_constant_ms: 80.0
+      thickness_m: 0.12
+    - type: curtain
+      side: right
+      enabled: true
+      fire_on: [left, right]
+      fire_threshold_g: 6.0
+      fire_delay_ms: 6.0
+      inflation_time_ms: 25.0
+      peak_pressure_kPa: 45.0
+      vent_time_constant_ms: 80.0
+      thickness_m: 0.12
+  # Rear seat design
+  seat:
+    # Cushion foam stiffness under a dog-sized contact patch [kN/m]
+    cushion_stiffness_kN_per_m: 25.0
+    # Cushion damping ratio [-]
+    cushion_damping_ratio: 0.6
+    # Friction between dog/harness and seat cover [-]
+    cushion_friction: 0.6
+    # Elastic rotational stiffness of the rear seat back [kN m/rad]
+    seat_back_stiffness_kNm_per_rad: 40.0
+    # Moment at which the seat back yields forward (cargo loading) [N m]
+    seat_back_forward_yield_Nm: 1800.0
+    # Moment at which the seat back yields rearward [N m]
+    seat_back_rearward_yield_Nm: 2500.0
+    # Forward moment at which the folding seat-back latch fails [N m]
+    seat_back_latch_strength_Nm: 3200.0
+    # Mass of the rear seat back [kg]
+    seat_back_mass_kg: 14.0
+    # Interior trim softness (door panels, front seat backs) (options: soft, medium, hard)
+    trim_stiffness: medium
+  # Rear head restraints
+  head_restraints:
+    # Rear head restraints fitted
+    present: true
+    # Head restraint height above the seat-back top [m]
+    height_above_seatback_m: 0.18
+    # Head restraint width [m]
+    width_m: 0.26
+    # Head restraint thickness [m]
+    thickness_m: 0.1
+    # Forward offset of the head restraint face from the seat-back face [m]
+    forward_offset_m: 0.03
+    # Foam softness (options: soft, medium, hard)
+    softness: medium
+
+# Trunk / cargo
+trunk_cargo:
+  # Cargo items
+  items:
+    - name: suitcase
+      mass_kg: 18.0
+      size_m: [0.7, 0.45, 0.26]
+      position_m: null
+      yaw_deg: 0.0
+      friction: 0.4
+      construction: rigid
+  # Packing arrangement for items without an explicit position (options: against_seatback, stacked, side_by_side, loose_rear, custom)
+  packing: against_seatback
+  # How the cargo is secured (options: none, tie_down_straps, cargo_net, cargo_barrier, locked_floor_box)
+  restraint_method: none
+  # Breaking strength of each tie-down strap [kN]
+  strap_strength_kN: 5.0
+  # Tie-down straps per item [-]
+  straps_per_item: 2
+  # Tie-down strap elongation at rated load [%]
+  strap_elongation_pct_at_rated: 15.0
+  # Cargo net stiffness [kN/m]
+  net_stiffness_kN_per_m: 60.0
+  # Cargo net strength [kN]
+  net_strength_kN: 12.0
+  # Cargo barrier / dog guard stiffness [kN/m]
+  barrier_stiffness_kN_per_m: 600.0
+  # Cargo barrier strength [kN]
+  barrier_strength_kN: 35.0
+  # Strength of the locked floor-box fixing [kN]
+  floor_box_strength_kN: 20.0
+
+# Environment
+environment:
+  # Road surface preset; sets road_friction unless it is given explicitly (options: dry, wet, snow, ice, gravel, custom)
+  road_condition: dry
+  # Tyre-road friction coefficient. None = from road_condition [-]
+  road_friction: null
+  # Simulated time before the impact [s]
+  pre_impact_duration_s: 1.0
+  # Pre-impact braking
+  braking:
+    # Driver brakes before the impact
+    enabled: true
+    # Requested deceleration (limited by road friction) [g]
+    deceleration_g: 0.8
+    # How long before the impact the driver starts braking [s]
+    onset_before_impact_s: 0.6
+    # Brake pressure build-up time [s]
+    ramp_time_s: 0.15
+    # Anti-lock brakes (without ABS a demand above the friction limit locks the wheels)
+    abs: true
+    # Brakes stay applied during and after the impact
+    continue_after_impact: true
+  # Vehicle movement before impact
+  motion:
+    # Yaw rate at the start of the simulation (+ = turning left) [deg/s]
+    initial_yaw_rate_deg_s: 0.0
+    # Sideslip of the velocity vector relative to the heading at impact (e.g. 75-90 for a vehicle sliding sideways into a pole) [deg]
+    sideslip_deg: 0.0
+    # Evasive front-wheel steer angle (+ = left) [deg]
+    steer_angle_deg: 0.0
+    # When the evasive steering starts [s]
+    steer_onset_before_impact_s: 0.5
+    # Steering ramp time [s]
+    steer_ramp_s: 0.2
+  # Gravitational acceleration [m/s^2]
+  gravity: 9.81
+
+# Numerics and output
+simulation:
+  # Occupant simulation time step [s]
+  timestep_s: 0.0001
+  # Time the dog settles into its posture before the scenario starts [s]
+  settle_time_s: 0.8
+  # Vehicle crash model time step [s]
+  vehicle_timestep_s: 5.0e-05
+  # Record every n-th occupant step [-]
+  record_every: 1
+  # Rate at which full states are stored for replay/rendering [Hz]
+  state_rate_hz: 500.0
+  # Output directory
+  output_dir: results
+  # Video rendering
+  render:
+    # Render a video of the event
+    enabled: false
+    # Cameras to render (options: side, dog, top, front, world)
+    cameras: [side, dog]
+    # Video width [px]
+    width: 960
+    # Video height [px]
+    height: 540
+    # Output frame rate [1/s]
+    fps: 30
+    # Slow-motion factor during the impact phase [x]
+    slow_motion: 10.0
+    # Show bones instead of the skin
+    show_skeleton: false
+
+# Assessment criteria
+assessment:
+  # How human injury assessment reference values are transferred to the dog: geometric similitude by mass ratio, or none (options: geometric, none)
+  reference_scaling: geometric
+  # Allowed forward head excursion. None = 1.1 x withers height [m]
+  max_head_excursion_m: null
+  # Allowed lateral torso excursion. None = 0.6 x withers height [m]
+  max_lateral_excursion_m: null
+  # Required margin between peak load and rated strength [-]
+  hardware_safety_factor: 1.5
+  # Screening limit for strap/plate contact pressure on soft tissue [kPa]
+  strap_pressure_limit_kPa: 250.0
+  # Screening limit for the ventral neck (throat) strap force. None = 1.5 x body weight [N]
+  throat_force_limit_N: null
+  # Override any reference value by criterion key, e.g. {hic15: 1200}
+  overrides: {}
+

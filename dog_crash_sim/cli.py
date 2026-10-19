@@ -107,7 +107,8 @@ def run_one(data: dict, out_root: Path, render: bool = False, report: bool = Tru
 def print_summary(res) -> None:
     mt = res.metrics
     s = mt.get("summary", {})
-    print(f"  overall: {s.get('overall')}   worst: {s.get('worst_criterion')} ({s.get('worst_ratio', 0):.2f} x limit)")
+    print(f"  overall: {s.get('overall')}   injury index: {s.get('injury_index', 0):.2f} (lower is better)   "
+          f"worst: {s.get('worst_criterion')} ({s.get('worst_ratio', 0):.2f} x limit)")
     for f in mt.get("flags", []):
         print(f"  ! {f}")
     print(f"  {'criterion':<58} {'value':>12} {'limit':>10}  status")
@@ -166,7 +167,9 @@ def compare_dirs(dirs, out_base: Path) -> str:
         for k in crit:
             if k not in keys:
                 keys.append(k)
-        rows.append((Path(d).name, s["metrics"]["summary"]["overall"], crit, s["metrics"].get("flags", [])))
+        summ = s["metrics"]["summary"]
+        rows.append((Path(d).name, f"{summ['overall']} / index {summ.get('injury_index', 0):.2f}", crit,
+                     s["metrics"].get("flags", [])))
     out_base.parent.mkdir(parents=True, exist_ok=True)
     with open(out_base.with_suffix(".csv"), "w", newline="") as f:
         w = csv.writer(f)
@@ -178,7 +181,7 @@ def compare_dirs(dirs, out_base: Path) -> str:
         for k, c in crit.items():
             labels[k] = f"{c['label']} ({c['unit']})"
     head = "| criterion | " + " | ".join(r[0] for r in rows) + " |\n|---|" + "---|" * len(rows) + "\n"
-    body = "| **overall** | " + " | ".join(f"**{r[1]}**" for r in rows) + " |\n"
+    body = "| **overall / injury index (lower is better)** | " + " | ".join(f"**{r[1]}**" for r in rows) + " |\n"
     for k in keys:
         cells = []
         for _, _, crit, _ in rows:

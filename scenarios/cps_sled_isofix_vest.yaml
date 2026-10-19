@@ -1,0 +1,8 @@
+# CPS-style harness certification sled test, harness clipped to both ISOFIX anchors.
+preset: cps_sled_frontal
+name: cps_sled_isofix_vest
+restraints: {attachment: isofix_tether}
+harness:
+  name: padded vest on short ISOFIX Y-tether
+  tether: {slack_m: 0.03, elongation_pct_at_rated: 8, rated_strength_kN: 15, connector: isofix_clip,
+           connector_strength_kN: 15}

@@ -1,0 +1,30 @@
+# Template for testing your own harness design. Load paths are set by `style`; strap widths,
+# strengths, padding and fit are free. To show your own 3D harness model, export it as an STL in
+# metres in the dog's torso frame (x forward, z up, origin at the torso centre of the unscaled model)
+# and set visual_mesh - it is scaled with the dog and drawn on the harness frame.
+name: custom_harness_design
+preset: frontal_offset_64
+rear_passenger: {breed_size: cps_45lb, posture: sitting}
+harness:
+  name: prototype Y-front, wide straps, energy-absorbing tether
+  style: y_front
+  attachment_point: dorsal
+  strap_width_mm: 50
+  padding_thickness_mm: 15
+  fit_slack_mm: 6
+  strap_rated_strength_kN: 14
+  buckle_strength_kN: 10
+  d_ring_strength_kN: 16
+  mass_kg: 0.6
+  rgba: [0.85, 0.35, 0.10, 1.0]
+  # visual_mesh: my_harness.stl
+  tether:
+    length_m: null           # null = taut length at rest + slack_m
+    slack_m: 0.05
+    elongation_pct_at_rated: 10
+    rated_strength_kN: 15
+    connector: buckle_tongue
+    connector_strength_kN: 12
+    energy_absorber_force_kN: 2.5
+    energy_absorber_stroke_m: 0.12
+restraints: {attachment: buckle_tether, pretensioner: {type: buckle}}

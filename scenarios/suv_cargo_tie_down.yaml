@@ -1,0 +1,17 @@
+# SUV frontal crash with heavy cargo; compare restraint_method: none / tie_down_straps / cargo_barrier
+# e.g.  python -m dog_crash_sim sweep scenarios/suv_cargo_tie_down.yaml --param trunk_cargo.restraint_method \
+#           --values none,tie_down_straps,cargo_barrier
+name: suv_cargo_tie_down
+vehicle: {preset: midsize_suv}
+collision: {impact_speed_kph: 56}
+rear_passenger: {breed_size: large, seating_position: rear_center, posture: sitting}
+restraints: {attachment: buckle_tether}
+trunk_cargo:
+  items:
+    - {name: cooler, mass_kg: 25, size_m: [0.55, 0.40, 0.40]}
+    - {name: toolbox, mass_kg: 15, size_m: [0.45, 0.25, 0.20]}
+    - {name: duffel bag, mass_kg: 8, size_m: [0.60, 0.30, 0.30], construction: soft}
+  packing: loose_rear
+  restraint_method: tie_down_straps
+  straps_per_item: 2
+  strap_strength_kN: 5

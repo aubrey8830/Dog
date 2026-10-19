@@ -337,7 +337,8 @@ table.params td:first-child {{ font-family:ui-monospace,monospace; font-size:12p
 <div class="verdict"><span class="pill {ov_status}" style="font-size:28px;padding:4px 16px">{STATUS_ICON[ov_status]} {overall}</span></div></div>
 <div><div class="muted">Worst criterion</div><div><b>{html.escape(mt.get('summary', {}).get('worst_criterion', ''))}</b>
  &mdash; {mt.get('summary', {}).get('worst_ratio', 0):.2f} &times; limit</div>
-<div class="muted">Dog remained on its seat: <b>{'yes' if mt.get('remained_on_seat') else 'no'}</b></div></div></div>
+<div class="muted">Dog remained on its seat: <b>{'yes' if mt.get('remained_on_seat') else 'no'}</b></div>
+<div class="muted">Injury index (mean worst ratio per body region, lower is better): <b>{mt.get('summary', {}).get('injury_index', 0):.2f}</b></div></div></div>
 <div class="tiles">{''.join(f"<div class='tile'><div class='l'>{l}</div><div class='v'>{v}</div></div>" for l, v in tiles)}</div>
 <h2>Findings</h2><div class="card warn"><ul>{flags}</ul></div>
 <h2>Criteria</h2><div class="card scroll"><table><tr><th>Criterion</th><th>Value</th><th>Limit</th><th>Ratio</th><th>Status</th><th>Basis</th><th>Note</th></tr>

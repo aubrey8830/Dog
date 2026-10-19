@@ -1,0 +1,11 @@
+# Dog travelling in the cargo area of a wagon, tethered to the cargo hooks; struck from behind.
+name: rear_impact_cargo_area
+vehicle: {preset: station_wagon}
+collision:
+  impact_speed_kph: 0
+  impact_direction: rear
+  partner: {type: vehicle, speed_kph: 50, mass_kg: 1600}
+rear_passenger: {breed_size: large, seating_position: cargo_area, posture: lying_sternal}
+restraints: {attachment: cargo_hook_tether}
+trunk_cargo: {items: []}
+environment: {braking: {enabled: false}, pre_impact_duration_s: 0.25}

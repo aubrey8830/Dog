@@ -1,0 +1,9 @@
+# Near-side moving-barrier impact with the dog lying across the rear bench, curtain + thorax airbags.
+preset: side_mdb_60
+name: side_impact_lying_dog
+rear_passenger: {posture: lying_sternal, seating_position: rear_left}
+restraints:
+  attachment: buckle_tether
+  airbags:
+    - {type: curtain, side: left, fire_on: [left], fire_delay_ms: 5}
+    - {type: rear_side_thorax, side: left, fire_on: [left]}
