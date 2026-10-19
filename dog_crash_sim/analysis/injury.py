@@ -116,14 +116,24 @@ def assess(res) -> dict:
     hard = [VEH_PARTS.index(p) for p in ("front_seat_backs", "door_left", "door_right", "window_left", "window_right",
                                           "airbag", "cargo", "console", "cargo_net_barrier", "pillars_roof")]
     thorax_contact = cf[:, thor, hard].sum(axis=1)
-    chest_load = harness_load + C["prosternum_strap_force"] + thorax_contact
-    chest_load_f = cfc_filter(chest_load, dt, 180.0)
+    # harness loads are spread over the strap/plate contact area; normalise to the ~200 cm^2 of a
+    # diagonal seat belt on which the human thoracic stiffness is based (hard contacts count fully)
+    h_ = cfg.harness
+    area_cm2 = h_.chest_plate_area_cm2 + h_.strap_width_mm * 0.1 * res.scene.harness.perimeter_girth * 100.0 * 0.5
+    spread = max(1.0, area_cm2 / (200.0 * lam ** 2))
+    chest_load = (harness_load + C["prosternum_strap_force"]) / spread + thorax_contact
+    chest_load_f = np.maximum(cfc_filter(chest_load, dt, 180.0), 0.0)
+    # Kelvin-Voigt thorax: k*x + c*dx/dt = F, with the human time constant c/k ~ 20 ms scaled by lambda
     k_th = HUMAN["thorax_stiffness_N_m"] * lam
+    tau_th = 0.020 * lam
     depth = sc.scaling.chest_depth
-    defl = np.maximum(chest_load_f, 0.0) / k_th
+    defl = np.zeros_like(chest_load_f)
+    rate = np.zeros_like(chest_load_f)
+    for i in range(1, len(defl)):
+        rate[i] = (chest_load_f[i] / k_th - defl[i - 1]) / tau_th
+        defl[i] = defl[i - 1] + rate[i] * (t[i] - t[i - 1])
     Cc = defl / depth
-    V = np.gradient(cfc_filter(defl, dt, 180.0), t)
-    VC = np.maximum(V, 0.0) * Cc
+    VC = np.maximum(rate, 0.0) * Cc
     crit.append(_crit("chest_compression", "Estimated thoracic compression (load/stiffness/depth)", Cc[post].max(), "-",
                       ref("chest_compression", HUMAN["chest_compression"]), "scaled-human", "thorax"))
     crit.append(_crit("viscous_criterion", "Estimated viscous criterion VC", VC[post].max(), "m/s",
@@ -168,17 +178,19 @@ def assess(res) -> dict:
     w = h.strap_width_mm * 1e-3
     pressures = {}
     # belt-on-drum (capstan) pressure under a strap of tension T wrapped over a body radius R: p = T / (w R)
+    vest = h.style == "padded_vest" and h.chest_plate_area_cm2 > 0
     for j, nm in enumerate(C.get("tendon_names", [])):
         ti = next(x for x in sc.tendons if x.name == nm)
-        if ti.kind == "strap":
+        if ti.kind == "strap" and not (vest and nm == "neck_loop"):
             pressures[nm.replace("_", " ")] = cfc_filter(C["tendon_tension"][:, j], dt, 180.0) / (w * ti.radius)
     if cfg.harness.style == "collar_only":
         pressures["collar"] = throat / (2.0 * w * sc.scaling.neck_radius)
     if hf.size:
         Fx_rear = cfc_filter(np.maximum(-hf[:, 0], 0.0), dt, 180.0)
-        if h.style == "padded_vest" and h.chest_plate_area_cm2 > 0:
+        if vest:
+            # the vest's front panel (chest plate + neck opening) spreads both loads over the plate area
             area = h.chest_plate_area_cm2 * 1e-4
-            pressures["chest plate"] = Fx_rear / area
+            pressures["chest plate"] = (Fx_rear + cfc_filter(C["prosternum_strap_force"], dt, 180.0)) / area
         elif h.style == "y_front":
             pressures["Y strap"] = Fx_rear / (w * 0.16 * sc.scaling.length_scale)
         Flat = cfc_filter(np.linalg.norm(hf[:, 1:3], axis=1), dt, 180.0)
@@ -188,8 +200,9 @@ def assess(res) -> dict:
         v = float(np.max(p[post])) / 1e3
         if v > pmax:
             pmax_name, pmax = nm, v
-    crit.append(_crit("strap_pressure", f"Peak strap/plate contact pressure ({pmax_name or 'n/a'})", pmax, "kPa",
-                      ref("strap_pressure", A.strap_pressure_limit_kPa), "screening", "soft tissue"))
+    crit.append(_crit("strap_pressure", "Peak strap/plate contact pressure", pmax, "kPa",
+                      ref("strap_pressure", A.strap_pressure_limit_kPa), "screening", "soft tissue",
+                      note=f"under the {pmax_name}" if pmax_name else ""))
     # ---- hardware ---------------------------------------------------------------
     SF = A.hardware_safety_factor
     names = C.get("tendon_names", [])
@@ -200,10 +213,14 @@ def assess(res) -> dict:
             continue
         Tpk = float(TT[post, j].max()) if TT.size else 0.0
         if ti.kind in ("tether", "belt"):
-            strength = min(ti.strength, ti.connector_strength, h.d_ring_strength_kN * 1e3)
-            label = {"tether": "Tether / connector / ring load", "belt": "Belt load through the harness loop"}[ti.kind]
+            strength = min(ti.strength, ti.connector_strength)
+            label = {"tether": "Tether webbing / connector load", "belt": "Vehicle belt load"}[ti.kind]
             crit.append(_crit(f"{nm}_load", label, Tpk, "N", strength / SF, "hardware", "hardware",
                               note=f"rated {strength / 1e3:.1f} kN, safety factor {SF}"))
+            ring = float(C["ring_force"][post].max()) if "ring_force" in C else Tpk
+            crit.append(_crit("ring_load", "Resultant load on the harness attachment ring", ring, "N",
+                              h.d_ring_strength_kN * 1e3 / SF, "hardware", "hardware",
+                              note=f"two webbing legs meet at the ring; rated {h.d_ring_strength_kN:.1f} kN"))
         elif ti.kind == "strap":
             strength = min(ti.strength, ti.connector_strength)
             crit.append(_crit(f"{nm}_load", f"Body strap load ({nm.replace('_', ' ')})", Tpk, "N", strength / SF,
@@ -223,10 +240,10 @@ def assess(res) -> dict:
     head_r = 0.06 * sc.scaling.length_scale
     if A.max_head_excursion_m is not None:
         lim_exc = A.max_head_excursion_m
-    elif imp == "frontal" and lay.support != "cargo_floor":
+    elif imp == "frontal" and lay.support != "cargo_floor" and rc.front_seats_present:
         lim_exc = max(rc.front_seat_back_x_m - h0[0] - head_r, 0.05)
-    elif imp in ("left", "right"):
-        lim_exc = max(0.5 * rc.cabin_width_m - abs(h0[1]) - head_r, 0.05)
+    elif imp in ("left", "right") and rc.doors_present:
+        lim_exc = max(0.5 * rc.cabin_width_m - float(h0 @ axis) - head_r, 0.05)
     else:
         lim_exc = 1.1 * sc.scaling.withers_height
     crit.append(_crit("head_excursion", f"Head excursion towards the {('struck face' if imp != 'frontal' else 'front')}",
@@ -235,9 +252,13 @@ def assess(res) -> dict:
     lat = np.abs(C["torso_pos"][:, 1] - C["torso_pos"][0, 1])
     lim_lat = A.max_lateral_excursion_m or 0.6 * sc.scaling.withers_height
     crit.append(_crit("lateral_excursion", "Lateral torso excursion", lat.max(), "m", lim_lat, "kinematic", "kinematics"))
-    rot = np.abs(C["torso_rot"])
-    crit.append(_crit("torso_rotation", "Torso rotation (max of roll/pitch/yaw)", rot.max(), "deg", ref("torso_rotation", 90.0),
-                      "kinematic", "kinematics", note="CPS-style: the dog should not rotate/flip over"))
+    # rotation during the dynamic phase (contact + rebound), not the slow settling afterwards
+    t_dyn = max(res.motion.info.get("contact_duration_ms", 100.0) * 1e-3 + 0.06, 0.12)
+    dyn = (t >= -0.05) & (t <= t_dyn)
+    rot = C["torso_rot_angle"]
+    crit.append(_crit("torso_rotation", "Torso rotation during the impact (total angle)", rot[dyn].max(), "deg",
+                      ref("torso_rotation", 90.0), "kinematic", "kinematics",
+                      note=f"CPS-style: the dog should not rotate/flip over (0-{t_dyn * 1e3:.0f} ms)"))
     if C["harness_q"].size and h.style != "collar_only":
         hq = C["harness_q"]
         b = sc.bushing
@@ -289,6 +310,9 @@ def assess(res) -> dict:
     for c in crit:
         if c["status"] == "poor" and c["basis"] == "hardware":
             flags.append(f"{c['label']} exceeds the rated strength / safety factor")
+    poor = [c["label"] for c in crit if c["status"] == "poor" and c["basis"] != "hardware"]
+    if poor:
+        flags.append("criteria above their reference limit: " + "; ".join(poor))
     # ---- risk estimates (scaled human curves) ---------------------------------------------------
     risk = {
         "head_AIS3+": risk_ais3_hic(hic15 * lam_h ** 1.5),
@@ -298,11 +322,11 @@ def assess(res) -> dict:
     # ---- summary -----------------------------------------------------------------------------
     worst = max(crit, key=lambda c: (STATUS_ORDER.index(c["status"]), c["ratio"]))
     statuses = [c["status"] for c in crit]
-    if flags and any(("failed" in f) or ("remain" in f) or ("unstable" in f) or ("exceeds" in f) for f in flags):
+    if any(("failed at" in f) or ("remain" in f) or ("unstable" in f) or ("exceeds the rated" in f) for f in flags):
         overall = "FAIL"
     elif "poor" in statuses:
         overall = "FAIL"
-    elif "marginal" in statuses or flags:
+    elif "marginal" in statuses or any(not f.startswith("criteria above") for f in flags):
         overall = "MARGINAL"
     else:
         overall = "PASS"
@@ -314,8 +338,9 @@ def assess(res) -> dict:
     peaks = {
         "head_resultant_g": float(ah[post].max()), "chest_resultant_g": float(ac[post].max()),
         "tether_or_belt_N": float(TT[post].max()) if TT.size else 0.0,
+        "ring_force_N": float(C["ring_force"][post].max()) if "ring_force" in C else 0.0,
         "harness_load_N": float(harness_load[post].max()), "throat_force_N": float(throat[post].max()),
-        "head_excursion_m": float(max(exc.max(), 0.0)), "torso_rotation_deg": float(rot.max()),
+        "head_excursion_m": float(max(exc.max(), 0.0)), "torso_rotation_deg": float(rot[dyn].max()),
         "seat_back_rotation_deg": sb_fwd, "dog_cargo_contact_N": dog_cargo,
         "vehicle_peak_g": float(res.motion.info.get("peak_accel_g", 0.0)),
         "vehicle_delta_v_kph": float(res.motion.info.get("delta_v_kph", 0.0)),

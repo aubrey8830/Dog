@@ -430,7 +430,7 @@ class OccupantSimulation:
             elif ti.kind == "belt":
                 web.free_length = L + cfg.restraints.belt.slack_mm * 1e-3
             web.reset_set()
-        self.attachment = next((ti.kind for ti in self.scene.tendons if ti.kind in ("tether", "belt")), "none")
+        self.attachment = self.scene.attachment
         self.seat.peak_moment = 0.0
         m.opt.timestep = cfg.simulation.timestep_s
         # reference positions for excursion
@@ -475,9 +475,9 @@ class OccupantSimulation:
             "thoracolumbar_force": np.zeros((nrec, 3)), "thoracolumbar_torque": np.zeros((nrec, 3)),
             "lumbosacral_force": np.zeros((nrec, 3)), "lumbosacral_torque": np.zeros((nrec, 3)),
             "head_pos": np.zeros((nrec, 3)), "torso_pos": np.zeros((nrec, 3)), "pelvis_pos": np.zeros((nrec, 3)),
-            "torso_rot": np.zeros((nrec, 3)),
+            "torso_rot": np.zeros((nrec, 3)), "torso_rot_angle": np.zeros(nrec),
             "tendon_tension": np.zeros((nrec, len(tendon_names))),
-            "throat_force": np.zeros(nrec), "prosternum_strap_force": np.zeros(nrec),
+            "throat_force": np.zeros(nrec), "prosternum_strap_force": np.zeros(nrec), "ring_force": np.zeros(nrec),
             "harness_q": np.zeros((nrec, 6)), "harness_force": np.zeros((nrec, 6)),
             "seat_back_angle": np.zeros(nrec), "seat_back_moment": np.zeros(nrec),
             "door_left": np.zeros(nrec), "door_right": np.zeros(nrec), "rear_wall": np.zeros(nrec),
@@ -508,6 +508,12 @@ class OccupantSimulation:
         site_ids = {nm_: m.site(nm_).id for nm_ in ("neck_lat_L", "neck_ventral", "neck_lat_R", "shoulder_front_L",
                                                      "prosternum", "shoulder_front_R")}
         report_every = max(1, n // 20)
+        ring_tendon = next((ti for ti in sc.tendons if ti.kind in ("tether", "belt")), None)
+        if ring_tendon is not None:
+            w0 = m.tendon_adr[ring_tendon.tendon]
+            nw = m.tendon_num[ring_tendon.tendon]
+            ring_tendon.meta["sites"] = [int(m.wrap_objid[w0 + j]) for j in range(nw)]
+            ring_tendon.meta["ring"] = m.site(sc.ring_site).id
         self._apply_prescribed(0, True)
         mujoco.mj_forward(m, d)
         for k in range(n):
@@ -546,7 +552,10 @@ class OccupantSimulation:
                 C["torso_rot"][i] = [math.degrees(math.atan2(Rrel[2, 1], Rrel[2, 2])),
                                      math.degrees(-math.asin(max(-1.0, min(1.0, Rrel[2, 0])))),
                                      math.degrees(math.atan2(Rrel[1, 0], Rrel[0, 0]))]
+                C["torso_rot_angle"][i] = math.degrees(math.acos(max(-1.0, min(1.0, 0.5 * (np.trace(Rrel) - 1.0)))))
                 C["tendon_tension"][i] = [T.get(nm_t, 0.0) for nm_t in tendon_names]
+                if ring_tendon is not None:
+                    C["ring_force"][i] = self._ring_force(ring_tendon, T.get(ring_tendon.name, 0.0))
                 if throat is not None:
                     fv = self._via_force(T.get("neck_loop", 0.0), site_ids["neck_lat_L"], site_ids["neck_ventral"],
                                          site_ids["neck_lat_R"])
@@ -631,6 +640,22 @@ class OccupantSimulation:
             Rs = d.site_xmat[sid].reshape(3, 3)
             meas += Rs.T @ extra
         return meas
+
+    def _ring_force(self, ti, T):
+        """Resultant webbing force on the harness attachment ring."""
+        if T <= 0:
+            return 0.0
+        d = self.d
+        sites = ti.meta["sites"]
+        ring = ti.meta["ring"]
+        k = sites.index(ring)
+        p = d.site_xpos[ring]
+        f = np.zeros(3)
+        for j in (k - 1, k + 1):
+            if 0 <= j < len(sites):
+                u = d.site_xpos[sites[j]] - p
+                f += u / max(np.linalg.norm(u), 1e-9)
+        return float(T * np.linalg.norm(f))
 
     def _via_force(self, T, a, b, c):
         if T <= 0:

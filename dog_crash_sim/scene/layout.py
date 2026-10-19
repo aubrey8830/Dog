@@ -70,7 +70,10 @@ def compute_layout(cfg: ScenarioConfig) -> Layout:
     outboard = 0.295 * rc.seat_width_m
     seat_y = {"rear_left": outboard, "rear_center": 0.0, "rear_right": -outboard}
 
-    trunk_front_x = rc.seat_bight_x_m - rc.seat_back_thickness_m - 0.04
+    # the cargo floor starts behind the (reclined) seat back at floor height
+    hinge0 = bight + np.array([-0.5 * rc.seat_back_thickness_m, -0.04])
+    trunk_front_x = float(hinge0[0] - 0.5 * rc.seat_back_thickness_m / math.cos(sba)
+                          - max(rc.trunk_floor_height_m - hinge0[1], 0.0) * math.tan(sba) - 0.01)
     trunk_rear_x = trunk_front_x - rc.trunk_length_m
     trunk_rear_x = max(trunk_rear_x, x_rb + 0.12)
 

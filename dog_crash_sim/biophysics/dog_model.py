@@ -35,6 +35,32 @@ BASE_CHEST_DEPTH = 0.26         # m, sternum to withers at the girth
 BASE_CHEST_HALF_WIDTH = 0.082   # m
 BASE_NECK_RADIUS = 0.055        # m, base of the neck
 
+# Segment mass fractions used to redistribute the model's mass (canine body-segment data,
+# rounded; the raw model carries 16 % of its mass in the neck and only 26 % in the thorax).
+ANATOMICAL_FRACTIONS = {
+    "head": 0.07, "neck": 0.06, "thorax": 0.32, "lumbar": 0.14, "pelvis": 0.08,
+    "forelimbs": 0.12, "hindlimbs": 0.20, "tail": 0.01,
+}
+
+
+def segment_of(body_name: str) -> str:
+    if body_name in ("skull", "jaw"):
+        return "head"
+    if body_name.startswith("C_"):
+        return "neck"
+    if body_name in ("torso", "scapula_L", "scapula_R"):
+        return "thorax"
+    if body_name.startswith("L_"):
+        return "lumbar"
+    if body_name == "pelvis":
+        return "pelvis"
+    if body_name.startswith("Ca_"):
+        return "tail"
+    if any(body_name.startswith(p) for p in ("upper_arm", "lower_arm", "hand", "finger")):
+        return "forelimbs"
+    return "hindlimbs"
+
+
 PRIMITIVES_WITH_LENGTH_SIZE = {
     mujoco.mjtGeom.mjGEOM_SPHERE, mujoco.mjtGeom.mjGEOM_CAPSULE, mujoco.mjtGeom.mjGEOM_ELLIPSOID,
     mujoco.mjtGeom.mjGEOM_CYLINDER, mujoco.mjtGeom.mjGEOM_BOX,
@@ -145,8 +171,31 @@ def base_mass(model_path: Optional[str] = None) -> float:
     return _BASE_MASS_CACHE[key]
 
 
+def redistribute_mass(spec: mujoco.MjSpec, fractions: dict = ANATOMICAL_FRACTIONS) -> dict:
+    """Rescale segment densities so the segment masses follow ``fractions`` (total mass unchanged)."""
+    m = spec.compile()
+    total = float(m.body_subtreemass[1])
+    seg_mass = {}
+    for i in range(1, m.nbody):
+        seg = segment_of(m.body(i).name)
+        seg_mass[seg] = seg_mass.get(seg, 0.0) + float(m.body_mass[i])
+    factor = {seg: fractions[seg] * total / mass for seg, mass in seg_mass.items() if mass > 0}
+    for body in spec.bodies:
+        if body.name == "world":
+            continue
+        f = factor[segment_of(body.name)]
+        if body.explicitinertial:
+            body.mass = body.mass * f
+            body.inertia = np.asarray(body.inertia) * f
+        for g in body.geoms:
+            g.density = g.density * f
+            if not np.isnan(g.mass):
+                g.mass = g.mass * f
+    return factor
+
+
 def scale_dog_spec(spec: mujoco.MjSpec, body_mass: float, withers_height: float,
-                   model_path: Optional[str] = None) -> DogScaling:
+                   model_path: Optional[str] = None, mass_distribution: str = "anatomical") -> DogScaling:
     """Scale the dog in ``spec`` in place; returns the scaling factors."""
     m0 = base_mass(model_path)
     s = withers_height / BASE_WITHERS_HEIGHT
@@ -196,4 +245,6 @@ def scale_dog_spec(spec: mujoco.MjSpec, body_mass: float, withers_height: float,
         sk.vert = (np.asarray(sk.vert) * s).tolist()
         sk.bindpos = (np.asarray(sk.bindpos) * s).tolist()
         sk.inflate = sk.inflate * s
+    if mass_distribution == "anatomical":
+        redistribute_mass(spec)
     return sc

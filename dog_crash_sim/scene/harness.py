@@ -179,7 +179,8 @@ def build_geometry(skin_vertices: np.ndarray, sc: DogScaling, h: HarnessConfig) 
     meshes = {}
 
     # girth band
-    girth, gc = section_outline(V, np.array([GIRTH_X * s, 0, 0]), np.array([1.0, 0, 0]), np.array([0, 0, 1.0]))
+    tol = 0.006 * max(s, 1.0)
+    girth, gc = section_outline(V, np.array([GIRTH_X * s, 0, 0]), np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), tol=tol)
     per = float(np.sum(np.linalg.norm(np.roll(girth, -1, axis=0) - girth, axis=1)))
     meshes["girth_band"] = ("harness", *ribbon_mesh(girth, gc, np.array([1.0, 0, 0]), max(w, 0.02 * s) * 1.3, thick, gap))
 
@@ -187,7 +188,7 @@ def build_geometry(skin_vertices: np.ndarray, sc: DogScaling, h: HarnessConfig) 
     xs = np.linspace(BACK_PAD[0] * s, BACK_PAD[1] * s, 7)
     tops = []
     for x in xs:
-        pts, c = section_outline(V, np.array([x, 0, 0]), np.array([1.0, 0, 0]), np.array([0, 0, 1.0]))
+        pts, c = section_outline(V, np.array([x, 0, 0]), np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), tol=tol)
         tops.append(pts[np.argmax(pts[:, 2])])
     tops = np.array(tops)
     pw = min(0.09 * s, 2 * sc.chest_half_width * 0.75)
@@ -197,12 +198,12 @@ def build_geometry(skin_vertices: np.ndarray, sc: DogScaling, h: HarnessConfig) 
 
     # chest plate / Y strap along the ventral midline: girth -> brisket -> point of the chest
     prosternum = np.array([0.252 * s, 0.0, 0.0])
-    sel = V[(np.abs(V[:, 1]) < 0.015 * s) & (np.abs(V[:, 2] - 0.43 * s) < 0.015 * s)]
+    sel = V[(np.abs(V[:, 1]) < 0.015 * s + 0.004) & (np.abs(V[:, 2] - 0.43 * s) < 0.015 * s)]
     prosternum[0] = sel[:, 0].max()
     prosternum[2] = 0.43 * s
     girth_bottom = girth[np.argmin(girth[:, 2])]
     brisket_x = 0.17 * s
-    selb = V[(np.abs(V[:, 0] - brisket_x) < 0.006 * s) & (np.abs(V[:, 1]) < 0.015 * s)]
+    selb = V[(np.abs(V[:, 0] - brisket_x) < tol) & (np.abs(V[:, 1]) < 0.015 * s + 0.004)]
     brisket = np.array([brisket_x, 0.0, selb[:, 2].min()])
     knots = np.array([[girth_bottom[0], 0.0, girth_bottom[2]], brisket,
                       [0.5 * (brisket[0] + prosternum[0]) + 0.01 * s, 0.0, 0.5 * (brisket[2] + prosternum[2]) - 0.01 * s],
@@ -223,7 +224,7 @@ def build_geometry(skin_vertices: np.ndarray, sc: DogScaling, h: HarnessConfig) 
     v_dir = nv - nd
     n_plane = np.cross(np.array([0, 1.0, 0]), v_dir)
     n_plane /= np.linalg.norm(n_plane)
-    neck, ncent = section_outline(V, 0.5 * (nd + nv), n_plane, v_dir / np.linalg.norm(v_dir), tol=0.007 * s)
+    neck, ncent = section_outline(V, 0.5 * (nd + nv), n_plane, v_dir / np.linalg.norm(v_dir), tol=0.007 * max(s, 1.0))
     if h.style not in ("norwegian", "collar_only"):
         meshes["neck_loop"] = ("C_7", *ribbon_mesh(neck, ncent, n_plane, w, thick, gap))
     yl = neck[:, 1]
@@ -234,7 +235,7 @@ def build_geometry(skin_vertices: np.ndarray, sc: DogScaling, h: HarnessConfig) 
 
     # horizontal front strap (Norwegian)
     fz = FRONT_STRAP_Z * s
-    front, fcent = section_outline(V, np.array([0, 0, fz]), np.array([0, 0, 1.0]), np.array([1.0, 0, 0]), tol=0.006 * s)
+    front, fcent = section_outline(V, np.array([0, 0, fz]), np.array([0, 0, 1.0]), np.array([1.0, 0, 0]), tol=tol)
     front_half = front[front[:, 0] > GIRTH_X * s]
     order = np.argsort(np.arctan2(front_half[:, 1] - fcent[1], front_half[:, 0] - fcent[0]))
     front_half = front_half[order]
@@ -260,7 +261,7 @@ def build_geometry(skin_vertices: np.ndarray, sc: DogScaling, h: HarnessConfig) 
 
     # collar (reference case): ring around the neck higher up, attached to C_5
     collar_pts, ccent = section_outline(V, np.array([0.225 * s, 0, 0.60 * s]), np.array([0.5, 0, 0.87]),
-                                        np.array([1.0, 0, -0.57]), tol=0.006 * s)
+                                        np.array([1.0, 0, -0.57]), tol=tol)
     collar_ring = collar_pts[np.argmax(collar_pts[:, 2])] + np.array([0, 0, 0.015 * s])
     if h.style == "collar_only":
         meshes["collar"] = ("C_5", *ribbon_mesh(collar_pts, ccent, np.array([0.5, 0, 0.87]) / np.linalg.norm([0.5, 0, 0.87]),

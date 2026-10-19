@@ -137,6 +137,8 @@ class Scene:
     dynamic_bodies: np.ndarray
     sensors: dict
     cameras: list
+    ring_site: str = "harness_ring"
+    attachment: str = "none"
     notes: list = field(default_factory=list)
 
 
@@ -153,7 +155,7 @@ class SceneBuilder:
         mass, height = dog_mass_and_height(rp)
         spec = load_dog_spec(rp.model_path)
         self.spec = spec
-        self.sc = scale_dog_spec(spec, mass, height, rp.model_path)
+        self.sc = scale_dog_spec(spec, mass, height, rp.model_path, rp.mass_distribution)
         self._options()
         self._assets()
         # neutral-pose world positions of the scaled dog bodies (identity orientations in dog.xml)
@@ -253,7 +255,7 @@ class SceneBuilder:
 
     def _cushion_contact(self):
         rs = self.cfg.restraints.seat
-        m_eff = max(self.sc.body_mass / 4.0, 1.0)
+        m_eff = max(self.sc.body_mass / 2.0, 1.0)
         tc = math.sqrt(m_eff / (rs.cushion_stiffness_kN_per_m * 1e3))
         tc = max(tc, 3.0 * self.cfg.simulation.timestep_s)
         return (tc, max(rs.cushion_damping_ratio, 0.2)), (0.5, 0.95, 0.05, 0.5, 2.0)
@@ -344,27 +346,29 @@ class SceneBuilder:
         hgt = (top - bottom) / math.cos(rec)
         fw = rc.front_seat_width_m
         yc = 0.5 * rc.console_width_m + 0.5 * fw
-        for sgn, tag in ((1, "L"), (-1, "R")):
+        for sgn, tag in (((1, "L"), (-1, "R")) if rc.front_seats_present else ()):
             mid_z = 0.5 * (top + bottom)
             # rear face at fx at mid height, reclined (top further back)
             cx = fx + 0.06
             self._veh_geom(wb, "front_seat_backs", f"front_seat_back_{tag}", GEOM.mjGEOM_BOX, [0.06, 0.5 * fw, 0.5 * hgt],
-                           [cx, sgn * yc, mid_z], quat_y(-rec), material="seat")
+                           [cx, sgn * yc, mid_z], quat_y(-rec), material="seat", trim="soft")
             self._veh_geom(wb, "front_seat_backs", f"front_headrest_{tag}", GEOM.mjGEOM_BOX, [0.06, 0.13, 0.11],
-                           [cx - 0.5 * hgt * math.sin(rec) - 0.01, sgn * yc, top + 0.12], quat_y(-rec), material="headrest")
+                           [cx - 0.5 * hgt * math.sin(rec) - 0.01, sgn * yc, top + 0.12], quat_y(-rec), material="headrest",
+                           trim="soft")
             self._veh_geom(wb, "front_seat_backs", f"front_cushion_{tag}", GEOM.mjGEOM_BOX, [0.26, 0.5 * fw, 0.08],
                            [fx + 0.38, sgn * yc, bottom + 0.06], material="seat")
-        self._veh_geom(wb, "console", "console", GEOM.mjGEOM_BOX, [0.30, 0.5 * rc.console_width_m, 0.20],
-                       [fx + 0.30, 0, rc.floor_height_m + 0.20], material="trim")
+        if rc.front_seats_present:
+            self._veh_geom(wb, "console", "console", GEOM.mjGEOM_BOX, [0.30, 0.5 * rc.console_width_m, 0.20],
+                           [fx + 0.30, 0, rc.floor_height_m + 0.20], material="trim")
         # pillars and roof
         rz = rc.roof_height_m
         bl = rc.beltline_height_m
-        for sgn, tag in ((1, "L"), (-1, "R")):
+        for sgn, tag in (((1, "L"), (-1, "R")) if rc.roof_present else ()):
             y = sgn * (0.5 * cw + 0.03)
             self._veh_geom(wb, "pillars_roof", f"b_pillar_{tag}", GEOM.mjGEOM_BOX, [0.07, 0.04, 0.5 * (rz - rc.floor_height_m)],
-                           [lay.b_pillar_x, y, 0.5 * (rz + rc.floor_height_m)], material="trim")
+                           [lay.b_pillar_x, y, 0.5 * (rz + rc.floor_height_m)], material="trim", trim="soft")
             self._veh_geom(wb, "pillars_roof", f"c_pillar_{tag}", GEOM.mjGEOM_BOX, [0.10, 0.04, 0.5 * (rz - bl)],
-                           [lay.c_pillar_x - 0.04, y, 0.5 * (rz + bl)], material="trim")
+                           [lay.c_pillar_x - 0.04, y, 0.5 * (rz + bl)], material="trim", trim="soft")
             # window glass of the rear door
             xg0, xg1 = lay.c_pillar_x + 0.06, lay.b_pillar_x - 0.07
             self._veh_geom(wb, "window_left" if sgn > 0 else "window_right", f"rear_window_{tag}", GEOM.mjGEOM_BOX,
@@ -373,8 +377,9 @@ class SceneBuilder:
                            material="glass", trim="hard", group=2)
         xr0 = lay.trunk_rear_x if not rc.parcel_shelf else lay.seat_back_top[0] - 0.25
         xr1 = rc.front_seat_back_x_m + 1.4
-        self._veh_geom(wb, "pillars_roof", "roof", GEOM.mjGEOM_BOX, [0.5 * (xr1 - xr0), 0.5 * cw + 0.05, 0.03],
-                       [0.5 * (xr0 + xr1), 0, rz + 0.03], material="roof", group=2)
+        if rc.roof_present:
+            self._veh_geom(wb, "pillars_roof", "roof", GEOM.mjGEOM_BOX, [0.5 * (xr1 - xr0), 0.5 * cw + 0.05, 0.03],
+                           [0.5 * (xr0 + xr1), 0, rz + 0.03], material="roof", group=2, trim="soft")
 
     def _seat_back(self):
         cfg = self.cfg
@@ -467,7 +472,8 @@ class SceneBuilder:
         x1 = lay.b_pillar_x - 0.07
         zb = rc.floor_height_m + 0.02
         zt = rc.beltline_height_m
-        for sgn, tag, part, sig in ((1, "L", "door_left", "intrusion_left"), (-1, "R", "door_right", "intrusion_right")):
+        for sgn, tag, part, sig in (((1, "L", "door_left", "intrusion_left"), (-1, "R", "door_right", "intrusion_right"))
+                                    if rc.doors_present else ()):
             body = self.spec.worldbody.add_body(name=f"rear_door_{tag}", pos=[0.5 * (x0 + x1), sgn * (0.5 * cw + 0.04),
                                                                          0.5 * (zb + zt)])
             j = _clean_joint(body.add_joint(name=f"rear_door_{tag}_slide", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 1, 0]))
@@ -717,46 +723,71 @@ class SceneBuilder:
 
     # ---- cargo --------------------------------------------------------
     def _cargo_positions(self):
+        """Centre positions of the cargo items for the chosen packing arrangement."""
         cfg = self.cfg
         tc = cfg.trunk_cargo
         lay = self.lay
-        items = tc.items
-        x_front = lay.trunk_front_x - 0.01
-        x_rear = lay.trunk_rear_x + 0.01
-        if self.lay.support == "cargo_floor":
-            x_front = self.lay.dog_ref[0] - 0.45 * self.sc.length_scale
-        zf = lay.trunk_floor_z
-        pos = []
-        cursor_x = x_front
-        stack_z = zf
-        side_y = lay.trunk_half_width
         t_sb = cfg.vehicle.rear_compartment.seat_back_thickness_m
-        for k, it in enumerate(items):
-            l, w, hgt = it.size_m
+        zf = lay.trunk_floor_z
+        z_top = lay.trunk_top_z if cfg.vehicle.rear_compartment.parcel_shelf else cfg.vehicle.rear_compartment.roof_height_m
+        hw = lay.trunk_half_width
+        x_rear = lay.trunk_rear_x + 0.01
+        x_front0 = lay.trunk_front_x - 0.005
+        if lay.support == "cargo_floor":   # the dog occupies the front of the cargo area
+            x_front0 = lay.dog_ref[0] - 0.45 * self.sc.length_scale
+
+        def front_limit(top):
+            if lay.support == "cargo_floor":
+                return x_front0
+            return min(x_front0, lay.seatback_rear_x(top, t_sb) - 0.015)
+
+        pos = []
+        placed = []   # (x0, x1, y0, y1, z_top)
+        row_front, row_depth, y_cur = None, 0.0, hw
+        stack_z = zf
+        rear_cursor = x_rear
+        for k, it in enumerate(tc.items):
+            l, w, h = it.size_m
             if it.position_m is not None:
                 pos.append(np.asarray(it.position_m, float))
                 continue
-            z_top = (stack_z if tc.packing == "stacked" else zf) + hgt
-            limit = lay.seatback_rear_x(z_top, t_sb) - 0.015
-            if self.lay.support != "cargo_floor":
-                x_front = min(lay.trunk_front_x - 0.01, limit)
-                if tc.packing in ("against_seatback", "custom"):
-                    cursor_x = min(cursor_x, x_front)
-            if tc.packing in ("against_seatback", "custom"):
-                if cursor_x - l < x_rear:
-                    raise ValueError(f"cargo item {it.name!r} does not fit in the trunk length")
-                pos.append(np.array([cursor_x - 0.5 * l, 0.0, zf + 0.5 * hgt + 0.003]))
-                cursor_x -= l + 0.01
-            elif tc.packing == "stacked":
-                pos.append(np.array([x_front - 0.5 * l, 0.0, stack_z + 0.5 * hgt + 0.003]))
-                stack_z += hgt + 0.005
-            elif tc.packing == "side_by_side":
-                if side_y - w < -lay.trunk_half_width:
-                    raise ValueError(f"cargo item {it.name!r} does not fit across the trunk")
-                pos.append(np.array([x_front - 0.5 * l, side_y - 0.5 * w, zf + 0.5 * hgt + 0.003]))
-                side_y -= w + 0.01
+            if w > 2 * hw + 1e-6 or h > z_top - zf + 1e-6:
+                raise ValueError(f"cargo item {it.name!r} is larger than the trunk opening")
+            if tc.packing == "stacked":
+                if stack_z + h > z_top + 1e-6:
+                    raise ValueError(f"cargo item {it.name!r} does not fit on the stack under the trunk lid")
+                xf = front_limit(stack_z + h)
+                p = np.array([xf - 0.5 * l, 0.0, stack_z + 0.5 * h + 0.003])
+                stack_z += h + 0.005
             elif tc.packing == "loose_rear":
-                pos.append(np.array([x_rear + 0.5 * l, (k % 2) * 0.2 - 0.1, zf + 0.5 * hgt + 0.003]))
+                if y_cur - w < -hw:
+                    rear_cursor += row_depth + 0.01
+                    y_cur, row_depth = hw, 0.0
+                p = np.array([rear_cursor + 0.5 * l, y_cur - 0.5 * w, zf + 0.5 * h + 0.003])
+                y_cur -= w + 0.01
+                row_depth = max(row_depth, l)
+            else:  # against_seatback / side_by_side / custom: rows across the width, starting at the seat back
+                if row_front is None:
+                    row_front = front_limit(zf + h)
+                if y_cur - w < -hw:
+                    if tc.packing == "side_by_side":
+                        raise ValueError(f"cargo item {it.name!r} does not fit across the trunk")
+                    row_front -= row_depth + 0.01
+                    y_cur, row_depth = hw, 0.0
+                xf = min(row_front, front_limit(zf + h))
+                p = np.array([xf - 0.5 * l, y_cur - 0.5 * w, zf + 0.5 * h + 0.003])
+                y_cur -= w + 0.01
+                row_depth = max(row_depth, row_front - (xf - l))
+            if p[0] - 0.5 * l < x_rear - 1e-6 or p[0] + 0.5 * l > lay.trunk_front_x + 0.3:
+                # last resort: put it on top of an earlier item
+                for (x0, x1, y0, y1, zt) in placed:
+                    if x1 - x0 >= 0.5 * l and zt + h <= z_top:
+                        p = np.array([0.5 * (x0 + x1), 0.5 * (y0 + y1), zt + 0.5 * h + 0.003])
+                        break
+                else:
+                    raise ValueError(f"cargo item {it.name!r} does not fit in the trunk/cargo area")
+            placed.append((p[0] - 0.5 * l, p[0] + 0.5 * l, p[1] - 0.5 * w, p[1] + 0.5 * w, p[2] + 0.5 * h))
+            pos.append(p)
         return pos
 
     def _cargo(self):
@@ -992,20 +1023,73 @@ class SceneBuilder:
                      harness_joints=hj, bushing=self.bush, tendons=self.tendons,
                      seatback_joint=m.joint("seat_back_hinge").id, prescribed=prescribed, airbags=airbags,
                      cargo=cargo, cargo_restraint=cr, mocap=mocap, geom_dog_part=geom_dog, geom_veh_part=geom_veh,
-                     dynamic_bodies=dyn, sensors=sensors, cameras=self.cameras, notes=self.notes)
+                     dynamic_bodies=dyn, sensors=sensors, cameras=self.cameras, ring_site=self.ring_site,
+                     attachment=getattr(self, "attachment", "none"), notes=self.notes)
 
     # ---- initial placement of the dog ----------------------------------
     def _dog_initial_qpos(self, m, qa, q_end):
+        """Place the dog in its posture on its support without interpenetrating the interior.
+
+        If the requested heading does not fit (e.g. a large dog standing forwards has its head in the
+        front head restraint), the dog turns its head towards the gap between the front seats and lowers
+        it, like a real dog would; if nothing fits, an error explains why.
+        """
+        rp = self.cfg.rear_passenger
+        facing = rp.facing_deg if rp.facing_deg is not None else default_facing(rp.posture, rp.seating_position)
+        post = POSTURES[rp.posture]
+        lowered = {"C_7_extend": 18.0, "C_5_extend": 10.0, "C_3_extend": 12.0}
+        y = self.lay.dog_ref[1]
+        toward_center = [-1.0] if y > 0.05 else ([1.0] if y < -0.05 else [-1.0, 1.0])
+        # (heading, extra joint angles, trunk pitch, trunk roll) in order of preference
+        candidates = [(facing, {}, post.pitch_deg, post.roll_deg)]
+        free_heading = rp.facing_deg is None
+        if rp.posture == "sitting":
+            for pitch in (post.pitch_deg, -35.0, -25.0):
+                candidates.append((facing, lowered, pitch, post.roll_deg))
+        if free_heading and rp.posture in ("sitting", "standing") and self.lay.support == "cushion":
+            for extra in ({}, lowered):
+                for ang in (15.0, 30.0, 45.0):
+                    for sgn in toward_center:
+                        candidates.append((facing + sgn * ang, extra, post.pitch_deg if not extra else
+                                           max(post.pitch_deg, -35.0), post.roll_deg))
+        if rp.posture.startswith("lying"):
+            rolls = (post.roll_deg, -post.roll_deg) if post.roll_deg else (post.roll_deg,)
+            for roll in rolls:
+                for fac in ((facing, facing + 180.0) if free_heading else (facing,)):
+                    for extra in ({}, lowered):
+                        candidates.append((fac, extra, post.pitch_deg, roll))
+            if free_heading:
+                for fac in (facing + 20.0, facing - 20.0, 0.0, 180.0):
+                    candidates.append((fac, lowered, post.pitch_deg, post.roll_deg))
+        best = None
+        for fac, extra, pitch, roll in candidates:
+            q, resid = self._place_dog(m, qa, q_end, fac, extra, pitch, roll)
+            if best is None or resid > best[1]:
+                best = (q, resid, fac, extra)
+            if resid > -0.003:
+                break
+        q, resid, fac, extra = best
+        if resid < -0.02:
+            raise ValueError(f"the {rp.posture} dog does not fit at {rp.seating_position} (residual interpenetration "
+                             f"{-resid * 1000:.0f} mm); choose another posture, facing_deg or seating position")
+        if fac != facing or extra:
+            self.notes.append(f"Dog placement adjusted to fit the compartment: heading {fac:.0f} deg"
+                              + (", head lowered / trunk lowered" if extra else "") + ".")
+        return q
+
+    def _place_dog(self, m, qa, q_end, facing, extra_joints, pitch_deg, roll_deg):
         cfg = self.cfg
         rp = cfg.rear_passenger
         lay = self.lay
         post = POSTURES[rp.posture]
-        facing = rp.facing_deg if rp.facing_deg is not None else default_facing(rp.posture, rp.seating_position)
         d = mujoco.MjData(m)
         q = d.qpos
         q[:] = m.qpos0
         for jn, deg in post.joints.items():
             q[m.joint(jn).qposadr[0]] = math.radians(deg)
+        for jn, deg in extra_joints.items():
+            adr = m.joint(jn).qposadr[0]
+            q[adr] = min(q[adr] + math.radians(deg), m.jnt_range[m.joint(jn).id, 1] - 0.02)
         # curl the tail along the body
         for j in range(m.njnt):
             nm = m.joint(j).name
@@ -1013,23 +1097,17 @@ class SceneBuilder:
                 q[m.jnt_qposadr[j]] = math.radians(14.0 if rp.posture == "sitting" else 10.0)
             if nm.startswith("Ca_") and nm.endswith("_extend"):
                 q[m.jnt_qposadr[j]] = math.radians(8.0 if rp.posture == "sitting" else 4.0)
-        quat = quat_from_euler(math.radians(post.roll_deg), math.radians(post.pitch_deg), math.radians(facing))
+        quat = quat_from_euler(math.radians(roll_deg), math.radians(pitch_deg), math.radians(facing))
         q[qa:qa + 3] = 0.0
         q[qa + 3:qa + 7] = quat
         mujoco.mj_forward(m, d)
-        dog_geoms = [g for g in range(m.ngeom) if self._is_dog_collision(m, g)]
-        lo, hi = self._aabb(m, d, dog_geoms)
+        dog_geoms = set(g for g in range(m.ngeom) if self._is_dog_collision(m, g))
         body_geoms = [g for g in dog_geoms if not m.body(m.geom_bodyid[g]).name.startswith("Ca_")]
         lo_b, hi_b = self._aabb(m, d, body_geoms)
         ref = lay.dog_ref.copy()
-        # vertical: rest on the support
-        if lay.support == "cushion":
-            support_z = lay.cushion_z(ref[0])
-        else:
-            support_z = ref[2]
+        support_z = lay.cushion_z(ref[0]) if lay.support == "cushion" else ref[2]
         dz = support_z + 0.004 - lo_b[2]
-        # horizontal
-        if rp.posture in ("sitting", "standing") and lay.support == "cushion" and abs(math.sin(math.radians(facing))) < 0.5:
+        if rp.posture in ("sitting", "standing") and lay.support == "cushion" and abs(math.sin(math.radians(facing))) < 0.75:
             # rump against the seat back face
             z_rump = support_z + 0.10 * self.sc.length_scale
             x_face = lay.bight[0] - (z_rump - lay.bight[1]) * math.tan(lay.seat_back_angle)
@@ -1038,9 +1116,9 @@ class SceneBuilder:
             dx = ref[0] - 0.5 * (lo_b[0] + hi_b[0])
         dy = ref[1] - 0.5 * (lo_b[1] + hi_b[1])
         q[qa:qa + 3] = [dx, dy, dz]
-        mujoco.mj_forward(m, d)
-        # resolve initial interpenetration with the vehicle
-        for _ in range(30):
+        body_set = set(body_geoms)
+
+        def worst_contact(include_tail):
             mujoco.mj_forward(m, d)
             worst = None
             for i in range(d.ncon):
@@ -1048,16 +1126,22 @@ class SceneBuilder:
                 g1, g2 = c.geom1, c.geom2
                 if (g1 in dog_geoms) == (g2 in dog_geoms):
                     continue
-                if c.dist < -0.002:
+                if not include_tail and not (g1 in body_set or g2 in body_set):
+                    continue
+                if c.dist < -0.002 and (worst is None or c.dist < worst[0]):
                     n = np.array(c.frame[:3])
-                    push = n * (-c.dist + 0.002) * (1.0 if g2 in dog_geoms else -1.0)
-                    if worst is None or -c.dist > worst[0]:
-                        worst = (-c.dist, push)
-            if worst is None:
+                    worst = (c.dist, n * (-c.dist + 0.002) * (1.0 if g2 in dog_geoms else -1.0))
+            return worst
+
+        for _ in range(30):
+            w = worst_contact(True)
+            if w is None:
                 break
-            q[qa:qa + 3] += worst[1]
+            q[qa:qa + 3] += w[1]
+        w = worst_contact(False)
+        resid = 0.0 if w is None else float(w[0])
         self.dog_lowest = lo_b[2] + dz
-        return q[qa:q_end].copy()
+        return q[qa:q_end].copy(), resid
 
     @staticmethod
     def _is_dog_collision(m, g):

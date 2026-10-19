@@ -175,6 +175,9 @@ class RearCompartmentConfig:
     trunk_width_m: float = F(1.10, "m", "Width of the trunk / cargo floor")
     rear_crush_space_m: float = F(0.30, "m", "Rear crush absorbed before the trunk rear wall moves into the trunk")
     parcel_shelf: bool = F(True, "", "Rigid parcel shelf / bulkhead above the seat back (sedans)")
+    front_seats_present: bool = F(True, "", "Front seats and console in front of the rear row (false = open sled buck)")
+    roof_present: bool = F(True, "", "Roof, pillars and side windows (false = open sled buck)")
+    doors_present: bool = F(True, "", "Rear door trims (false = open sled buck)")
 
 
 @dataclass
@@ -268,6 +271,10 @@ class RearPassengerConfig:
     seat_belt_used: bool = F(True, "", "Whether the harness is connected to the vehicle restraint system (via the seat belt "
                              "or an anchor). False = unrestrained dog wearing the harness")
     neuromuscular: NeuromuscularConfig = S(NeuromuscularConfig, "Muscle tone and reflexes")
+    mass_distribution: str = F("anatomical", "", "anatomical: redistribute the model's segment masses to canine "
+                               "segment fractions (head 7 %, neck 6 %, thorax 32 %, lumbar 14 %, pelvis 8 %, forelimbs "
+                               "12 %, hindlimbs 20 %, tail 1 %); model: keep the source model's distribution",
+                               ["anatomical", "model"])
     model_path: Optional[str] = F(None, "", "Override the MuJoCo dog model (defaults to musculoskeletal_dog/models/dog.xml)")
 
 
@@ -304,9 +311,10 @@ class HarnessConfig:
     padding_thickness_mm: float = F(12.0, "mm", "Foam padding under the straps/plates")
     fit_slack_mm: float = F(10.0, "mm", "Looseness of the fitted harness")
     strap_elongation_pct_at_rated: float = F(10.0, "%", "Body-strap webbing elongation at rated load")
-    strap_rated_strength_kN: float = F(8.0, "kN", "Body-strap breaking strength")
+    strap_rated_strength_kN: float = F(12.0, "kN", "Body-strap breaking strength")
     d_ring_strength_kN: float = F(12.0, "kN", "Breaking strength of the attachment ring")
-    buckle_strength_kN: float = F(6.0, "kN", "Breaking strength of the body-strap buckles (side-release buckles fail first)")
+    buckle_strength_kN: float = F(8.0, "kN", "Breaking strength of the body-strap buckles (side-release plastic buckles "
+                                  "are often 1-3 kN; metal cam buckles 8+ kN)")
     mass_kg: float = F(0.45, "kg", "Harness mass")
     rgba: list = F([0.15, 0.35, 0.75, 1.0], "", "Colour of the 3D harness")
     visual_mesh: Optional[str] = F(None, "", "Optional STL of your own harness design, attached to the harness frame for display "

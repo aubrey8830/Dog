@@ -180,11 +180,3 @@ def interactive_replay(res, speed: float = 0.1) -> None:  # pragma: no cover - n
                 v.sync()
                 dt_state = (res.states_t[1] - res.states_t[0]) if len(res.states_t) > 1 else 0.002
                 time.sleep(max(0.0, dt_state / speed - (time.time() - t0)))
-
-
-def ensure_gl_backend() -> None:
-    """Pick an OpenGL backend for off-screen rendering when no display is present."""
-    if os.environ.get("MUJOCO_GL"):
-        return
-    if not os.environ.get("DISPLAY"):
-        os.environ["MUJOCO_GL"] = "egl"
